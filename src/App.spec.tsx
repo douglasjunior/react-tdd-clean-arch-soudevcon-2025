@@ -2,9 +2,6 @@ import { describe, expect, test } from 'vitest';
 import { fireEvent, render } from '@testing-library/react';
 
 import App from './App';
-import { createAxiosMock } from './mocks';
-
-createAxiosMock();
 
 describe('App', () => {
 
@@ -138,7 +135,7 @@ describe('App', () => {
     fireEvent.click(result.getByTestId('button-confirm'));
 
     const success = await result.findByTestId('span-success');
-    expect(success.textContent).toBe('Conta criada com sucesso');
+    expect(success.textContent).toBe('Conta criada com sucesso #11');
     expect(success).toBeInTheDocument();
   });
 
@@ -157,7 +154,7 @@ describe('App', () => {
     fireEvent.click(result.getByTestId('button-confirm'));
 
     const success = await result.findByTestId('span-success');
-    expect(success.textContent).toBe('Conta criada com sucesso');
+    expect(success.textContent).toBe('Conta criada com sucesso #11');
     expect(success).toBeInTheDocument();
   });
 });
