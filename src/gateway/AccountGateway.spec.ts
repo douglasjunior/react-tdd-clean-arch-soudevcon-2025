@@ -26,7 +26,8 @@ describe('AccountGateway', () => {
 
     const response = await gateway.signup(input);
 
-    expect(response).toBe(1);
+    expect(response.status).toBe(201);
+    expect(response.data.id).toBe(1);
     expect(spyPost).toHaveBeenCalledTimes(1);
     expect(spyPost).toHaveBeenCalledWith('https://jsonplaceholder.typicode.com/users', input);
   });

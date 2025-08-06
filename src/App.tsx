@@ -34,8 +34,8 @@ function App() {
         email: form.current.getFormState().email,
         password: form.current.getFormState().password,
       };
-      const id = await accountGateway.signup(input);
-      form.current.updateForm('success', 'Conta criada com sucesso: #' + id);
+      const response = await accountGateway.signup(input);
+      form.current.updateForm('success', 'Conta criada com sucesso: #' + response.data.id);
       setFormState(form.current.getFormState());
     }, { once: true })
 
