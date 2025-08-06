@@ -1,28 +1,16 @@
-import { beforeEach, describe, expect, test } from 'vitest';
-import { fireEvent, render, RenderResult, waitFor } from '@testing-library/react';
+import { describe, expect, test } from 'vitest';
+import { fireEvent, render } from '@testing-library/react';
 
 import App from './App';
-import { RegistryProvider } from './registry/RegistryProvider';
-import { AccountGatewayMock } from './gateway/AccountGateway';
+import { createAxiosMock } from './mocks';
 
-let result: RenderResult;
-beforeEach(() => {
-  const accountGateway = new AccountGatewayMock();
-
-  const registry = {
-    accountGateway
-  }
-
-  result = render(
-    <RegistryProvider value={registry}>
-      <App />
-    </RegistryProvider>
-  );
-})
+createAxiosMock();
 
 describe('App', () => {
 
   test('Deve testar o fluxo de progresso no preenchimento do formulário', () => {
+    const result = render(<App />);
+
     // Step 1
     expect(result.getByTestId('span-progress').textContent).toBe('0%');
     expect(result.getByTestId('span-step').textContent).toBe('1');
@@ -32,19 +20,35 @@ describe('App', () => {
 
     // Step 2
     expect(result.getByTestId('span-step').textContent).toBe('2');
-    expect(result.getByTestId('span-progress').textContent).toBe('30%');
     fireEvent.input(result.getByPlaceholderText('Informe seu nome'), { target: { value: 'John Doe' } });
+    expect(result.getByTestId('span-progress').textContent).toBe('45%');
     fireEvent.input(result.getByPlaceholderText('Informe seu cargo'), { target: { value: 'Gerente' } });
+    expect(result.getByTestId('span-progress').textContent).toBe('60%');
     fireEvent.input(result.getByPlaceholderText('Informe seu CPF'), { target: { value: '00011122233' } });
     expect(result.getByTestId('span-progress').textContent).toBe('75%');
+    fireEvent.click(result.getByTestId('button-next'));
+
+    // Step 3
+    expect(result.getByTestId('span-step').textContent).toBe('3');
+    fireEvent.input(result.getByPlaceholderText('Informe seu email'), { target: { value: `john@email.com` } });
+    expect(result.getByTestId('span-progress').textContent).toBe('85%');
+    fireEvent.input(result.getByPlaceholderText('Informe sua senha'), { target: { value: 'senha123' } });
+    expect(result.getByTestId('span-progress').textContent).toBe('95%');
+    fireEvent.input(result.getByPlaceholderText('Repita sua senha'), { target: { value: 'senha444' } });
+    expect(result.getByTestId('span-progress').textContent).toBe('95%');
+    fireEvent.input(result.getByPlaceholderText('Repita sua senha'), { target: { value: 'senha123' } });
+    expect(result.getByTestId('span-progress').textContent).toBe('100%');
 
     // Previous
     fireEvent.click(result.getByTestId('button-previous'));
+    expect(result.getByTestId('span-step').textContent).toBe('2');
+    fireEvent.click(result.getByTestId('button-previous'));
     expect(result.getByTestId('span-step').textContent).toBe('1');
-    expect(result.getByTestId('span-progress').textContent).toBe('75%');
   });
 
   test('Deve testar a visibilidade dos componentes do formulário', () => {
+    const result = render(<App />);
+
     // Step 1
     expect(result.queryByDisplayValue('administrator')).toBeInTheDocument();
     expect(result.queryByDisplayValue('operator')).toBeInTheDocument();
@@ -95,6 +99,8 @@ describe('App', () => {
   });
 
   test('Deve testar as validação dos campos e o controle do preenchimento no formulário', async () => {
+    const result = render(<App />);
+
     fireEvent.click(result.getByTestId('button-next'));
     expect(result.getByTestId('span-step').textContent).toBe('1');
     expect(result.getByTestId('span-error').textContent).toBe('Selecione o tipo de conta');
@@ -118,33 +124,27 @@ describe('App', () => {
 
     expect(result.getByTestId('span-step').textContent).toBe('3');
     fireEvent.click(result.getByTestId('button-confirm'));
-    await waitFor(() => {
-      expect(result.getByTestId('span-error').textContent).toBe('Preencha o seu email');
-    });
+    expect(result.getByTestId('span-error').textContent).toBe('Preencha o seu email');
     fireEvent.input(result.getByPlaceholderText('Informe seu email'), { target: { value: `john@email.com` } });
     fireEvent.click(result.getByTestId('button-confirm'));
-    await waitFor(() => {
-      expect(result.getByTestId('span-error').textContent).toBe('Preencha a sua senha');
-    });
+    expect(result.getByTestId('span-error').textContent).toBe('Preencha a sua senha');
     fireEvent.input(result.getByPlaceholderText('Informe sua senha'), { target: { value: 'senha123' } });
     fireEvent.click(result.getByTestId('button-confirm'));
-    await waitFor(() => {
-      expect(result.getByTestId('span-error').textContent).toBe('Preencha a confirmação da senha');
-    });
+    expect(result.getByTestId('span-error').textContent).toBe('Preencha a confirmação da senha');
     fireEvent.input(result.getByPlaceholderText('Repita sua senha'), { target: { value: 'senha444' } });
     fireEvent.click(result.getByTestId('button-confirm'));
-    await waitFor(() => {
-      expect(result.getByTestId('span-error').textContent).toBe('As senhas não conferem');
-    });
+    expect(result.getByTestId('span-error').textContent).toBe('As senhas não conferem');
     fireEvent.input(result.getByPlaceholderText('Repita sua senha'), { target: { value: 'senha123' } });
     fireEvent.click(result.getByTestId('button-confirm'));
 
     const success = await result.findByTestId('span-success');
-    expect(success.textContent).toMatch(/Conta criada com sucesso: #\d+/);
+    expect(success.textContent).toBe('Conta criada com sucesso');
     expect(success).toBeInTheDocument();
   });
 
   test('Deve testar o fluxo de criação da conta integrando com o backend', async () => {
+    const result = render(<App />);
+
     fireEvent.click(result.getByDisplayValue('administrator'));
     fireEvent.click(result.getByTestId('button-next'));
     fireEvent.input(result.getByPlaceholderText('Informe seu nome'), { target: { value: 'John Doe' } });
@@ -157,7 +157,7 @@ describe('App', () => {
     fireEvent.click(result.getByTestId('button-confirm'));
 
     const success = await result.findByTestId('span-success');
-    expect(success.textContent).toMatch(/Conta criada com sucesso: #\d+/);
+    expect(success.textContent).toBe('Conta criada com sucesso');
     expect(success).toBeInTheDocument();
   });
 });

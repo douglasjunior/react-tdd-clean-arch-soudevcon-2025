@@ -1,131 +1,243 @@
-import { ChangeEventHandler, MouseEventHandler, useCallback, useRef, useState } from "react";
-import AccountGateway from "./gateway/AccountGateway";
-import { useInject } from "./registry/RegistryProvider";
-import SignupForm from "./entity/SignupForm";
+import { ChangeEventHandler, MouseEventHandler, useCallback, useState } from "react";
+import axios from 'axios';
 
 function App() {
-  const accountGateway: AccountGateway = useInject('accountGateway');
+  const [form, setForm] = useState({
+    accountType: '',
+    name: '',
+    role: '',
+    documentNumber: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    step: 1,
+    error: '',
+    success: '',
+  });
 
-  const form = useRef(new SignupForm());
-  const [formState, setFormState] = useState(form.current.getFormState());
+  const calculateProgress = () => {
+    let progress = 0;
+    if (form.accountType) progress += 30;
+    if (form.name) progress += 15;
+    if (form.role) progress += 15;
+    if (form.documentNumber) progress += 15;
+    if (form.email) progress += 10;
+    if (form.password) progress += 10;
+    if (form.password && form.password === form.confirmPassword) progress += 5;
+    return progress;
+  }
 
   const updateForm: ChangeEventHandler<HTMLInputElement> = useCallback((event) => {
-    form.current.updateForm(event.target.name as any, event.target.value);
-    setFormState(form.current.getFormState());
+    setForm((prevForm) => ({
+      ...prevForm,
+      [event.target.name]: event.target.value,
+    }));
   }, []);
+
+  const validate = useCallback(() => {
+    if (form.step === 1 && !form.accountType) {
+      setForm((prevForm) => ({
+        ...prevForm,
+        error: 'Selecione o tipo de conta',
+      }));
+      return false;
+    }
+
+    if (form.step === 2) {
+      if (!form.name) {
+        setForm((prevForm) => ({
+          ...prevForm,
+          error: 'Preencha o seu nome',
+        }));
+        return false;
+      }
+      if (!form.role) {
+        setForm((prevForm) => ({
+          ...prevForm,
+          error: 'Preencha o seu cargo',
+        }));
+        return false;
+      }
+      if (!form.documentNumber) {
+        setForm((prevForm) => ({
+          ...prevForm,
+          error: 'Preencha o seu cpf',
+        }));
+        return false;
+      }
+    }
+
+    if (form.step === 3) {
+      if (!form.email) {
+        setForm((prevForm) => ({
+          ...prevForm,
+          error: 'Preencha o seu email',
+        }));
+        return false;
+      }
+      if (!form.password) {
+        setForm((prevForm) => ({
+          ...prevForm,
+          error: 'Preencha a sua senha',
+        }));
+        return false;
+      }
+      if (!form.confirmPassword) {
+        setForm((prevForm) => ({
+          ...prevForm,
+          error: 'Preencha a confirmação da senha',
+        }));
+        return false;
+      }
+      if (form.password !== form.confirmPassword) {
+        setForm((prevForm) => ({
+          ...prevForm,
+          error: 'As senhas não conferem',
+        }));
+        return false;
+      }
+    }
+
+    setForm((prevForm) => ({
+      ...prevForm,
+      error: '',
+    }));
+    return true;
+  }, [form.accountType, form.confirmPassword, form.documentNumber, form.email, form.name, form.password, form.role, form.step]);
+
 
   const next: MouseEventHandler<HTMLButtonElement> = useCallback(() => {
-    form.current.next()
-    setFormState(form.current.getFormState());
-  }, []);
+    if (!validate()) return;
+
+    setForm((prevForm) => ({
+      ...prevForm,
+      step: prevForm.step + 1,
+    }));
+  }, [validate]);
 
   const previous: MouseEventHandler<HTMLButtonElement> = useCallback(() => {
-    form.current.previous();
-    setFormState(form.current.getFormState());
+    setForm((prevForm) => ({
+      ...prevForm,
+      step: prevForm.step - 1,
+    }));
   }, []);
 
   const confirm: MouseEventHandler<HTMLButtonElement> = useCallback(async () => {
-    form.current.addEventListener('confirmed', async () => {
-      const input = {
-        accountType: form.current.getFormState().accountType,
-        name: form.current.getFormState().name,
-        role: form.current.getFormState().role,
-        documentNumber: form.current.getFormState().documentNumber,
-        email: form.current.getFormState().email,
-        password: form.current.getFormState().password,
-      };
-      const id = await accountGateway.signup(input);
-      form.current.updateForm('success', 'Conta criada com sucesso: #' + id);
-      setFormState(form.current.getFormState());
-    }, { once: true })
+    if (!validate()) return;
+    const input = {
+      accountType: form.accountType,
+      name: form.name,
+      role: form.role,
+      documentNumber: form.documentNumber,
+      email: form.email,
+      password: form.password,
+    };
+    const response = await axios.post('https://jsonplaceholder.typicode.com/users', input);
+    if (response.status !== 201) return;
+    setForm((prevForm) => ({
+      ...prevForm,
+      success: 'Conta criada com sucesso #' + response.data.id,
+    }));
+  }, [form.accountType, form.documentNumber, form.email, form.name, form.password, form.role, validate]);
 
-    form.current.confirm();
-    setFormState(form.current.getFormState());
-  }, [accountGateway]);
+  const fill = useCallback(() => {
+    setForm({
+      accountType: 'administrator',
+      name: 'John Doe',
+      role: 'Gerente',
+      documentNumber: '00011122233',
+      email: `john@email.com`,
+      password: 'senha123',
+      confirmPassword: 'senha123',
+      step: 3,
+      error: '',
+      success: '',
+    })
+  }, []);
 
   return (
     <div>
       <div>
-        <span>Passo: </span>
-        <span data-testid="span-step">{formState.step}</span>
+        <span onClick={fill}>Passo: </span>
+        <span data-testid="span-step">{form.step}</span>
       </div>
       <div>
         <span>Progresso: </span>
-        <span data-testid="span-progress">{form.current.calculateProgress()}%</span>
+        <span data-testid="span-progress">{calculateProgress()}%</span>
       </div>
-      {formState.error ? (
+      {form.error ? (
         <div>
           <span>Erro: </span>
-          <span data-testid="span-error">{formState.error}</span>
+          <span data-testid="span-error">{form.error}</span>
         </div>
       ) : null}
-      {formState.success ? (
+      {form.success ? (
         <div>
           <span>Sucesso: </span>
-          <span data-testid="span-success">{formState.success}</span>
+          <span data-testid="span-success">{form.success}</span>
         </div>
       ) : null}
       {/* Step 1 */}
-      {formState.step === 1 ? (
+      {form.step === 1 ? (
         <div>
           <div>
-            <input type="radio" id="administrator" name="accountType" value="administrator" onChange={updateForm} checked={formState.accountType == 'administrator'} />
+            <input type="radio" id="administrator" name="accountType" value="administrator" onChange={updateForm} checked={form.accountType == 'administrator'} />
             <label htmlFor="administrator">Administrador</label>
             <br />
-            <input type="radio" id="operator" name="accountType" value="operator" onChange={updateForm} checked={formState.accountType == 'operator'} />
+            <input type="radio" id="operator" name="accountType" value="operator" onChange={updateForm} checked={form.accountType == 'operator'} />
             <label htmlFor="operator">Operador</label>
             <br />
-            <input type="radio" id="editor" name="accountType" value="editor" onChange={updateForm} checked={formState.accountType == 'editor'} />
+            <input type="radio" id="editor" name="accountType" value="editor" onChange={updateForm} checked={form.accountType == 'editor'} />
             <label htmlFor="editor">Editor</label>
           </div>
         </div>
       ) : null}
       {/* Step 2 */}
-      {formState.step === 2 ? (
+      {form.step === 2 ? (
         <div>
           <div>
             <label htmlFor="name">Nome:</label>
-            <input type="text" id="name" name="name" placeholder="Informe seu nome" onChange={updateForm} value={formState.name} />
+            <input type="text" id="name" name="name" placeholder="Informe seu nome" onChange={updateForm} value={form.name} />
           </div>
           <div>
             <label htmlFor="role">Cargo:</label>
-            <input type="text" id="role" name="role" placeholder="Informe seu cargo" onChange={updateForm} value={formState.role} />
+            <input type="text" id="role" name="role" placeholder="Informe seu cargo" onChange={updateForm} value={form.role} />
           </div>
           <div>
             <label htmlFor="documentNumber">CPF:</label>
-            <input type="text" id="documentNumber" name="documentNumber" placeholder="Informe seu CPF" onChange={updateForm} value={formState.documentNumber} />
+            <input type="text" id="documentNumber" name="documentNumber" placeholder="Informe seu CPF" onChange={updateForm} value={form.documentNumber} />
           </div>
         </div>
       ) : null}
       {/* Step 3 */}
-      {formState.step === 3 ? (
+      {form.step === 3 ? (
         <div>
           <div>
             <label htmlFor="email">Email:</label>
-            <input type="text" id="email" name="email" placeholder="Informe seu email" onChange={updateForm} value={formState.email} />
+            <input type="text" id="email" name="email" placeholder="Informe seu email" onChange={updateForm} value={form.email} />
           </div>
           <div>
             <label htmlFor="password">Senha:</label>
-            <input type="text" id="password" name="password" placeholder="Informe sua senha" onChange={updateForm} value={formState.password} />
+            <input type="text" id="password" name="password" placeholder="Informe sua senha" onChange={updateForm} value={form.password} />
           </div>
           <div>
             <label htmlFor="confirmPassword">Confirmação de senha:</label>
-            <input type="text" id="confirmPassword" name="confirmPassword" placeholder="Repita sua senha" onChange={updateForm} value={formState.confirmPassword} />
+            <input type="text" id="confirmPassword" name="confirmPassword" placeholder="Repita sua senha" onChange={updateForm} value={form.confirmPassword} />
           </div>
         </div>
       ) : null}
       <div>
-        {formState.step > 1 ? (
+        {form.step > 1 ? (
           <button data-testid="button-previous" onClick={previous}>
             Anterior
           </button>
         ) : null}
-        {formState.step < 3 ? (
+        {form.step < 3 ? (
           <button data-testid="button-next" onClick={next}>
             Próximo
           </button>
         ) : null}
-        {formState.step === 3 ? (
+        {form.step === 3 ? (
           <button data-testid="button-confirm" onClick={confirm}>
             Confirmar
           </button>
