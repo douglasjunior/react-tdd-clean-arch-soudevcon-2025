@@ -1,5 +1,6 @@
 import { ChangeEventHandler, MouseEventHandler, useCallback, useState } from "react";
-import axios from 'axios';
+import AccountGateway from "./gateway/AccountGateway";
+import { useInject } from "./registry/RegistryProvider";
 
 function App() {
   const [form, setForm] = useState({
@@ -14,6 +15,8 @@ function App() {
     error: '',
     success: '',
   });
+
+  const accountGateway: AccountGateway = useInject('accountGateway');
 
   const calculateProgress = () => {
     let progress = 0;
@@ -132,15 +135,15 @@ function App() {
       email: form.email,
       password: form.password,
     };
-    const response = await axios.post('https://jsonplaceholder.typicode.com/users', input);
-    if (response.status !== 201) return;
+    const response = await accountGateway.signup(input);
     setForm((prevForm) => ({
       ...prevForm,
       success: 'Conta criada com sucesso #' + response.data.id,
     }));
-  }, [form.accountType, form.documentNumber, form.email, form.name, form.password, form.role, validate]);
+  }, [accountGateway, form.accountType, form.documentNumber, form.email, form.name, form.password, form.role, validate]);
 
   const fill = useCallback(() => {
+    /* v8 ignore start */
     setForm({
       accountType: 'administrator',
       name: 'John Doe',
@@ -153,6 +156,7 @@ function App() {
       error: '',
       success: '',
     })
+    /* v8 ignore stop */
   }, []);
 
   return (
