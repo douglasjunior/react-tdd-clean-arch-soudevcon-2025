@@ -1,12 +1,25 @@
-import { describe, expect, test } from 'vitest';
-import { render, fireEvent } from '@testing-library/react';
+import { beforeEach, describe, expect, test } from 'vitest';
+import { render, fireEvent, RenderResult } from '@testing-library/react';
 
 import App from './App';
+import { RegistryProvider } from './registry/RegistryProvider';
+import { MockAccountGateway } from './gateway/AccountGateway';
+
+let result: RenderResult;
+beforeEach(() => {
+  const registry: Record<string, any> = {
+    accountGateway: new MockAccountGateway()
+  }
+
+  result = render(
+    <RegistryProvider value={registry}>
+      <App />
+    </RegistryProvider>
+  )
+});
 
 describe('App', () => {
   test('Deve testar o fluxo de progresso no preenchimento do fomulário', () => {
-    const result = render(<App />)
-
     // Step 1
     expect(result.getByTestId('span-progress').textContent).toBe('0%');
     expect(result.getByTestId('span-step').textContent).toBe('1');
@@ -41,8 +54,6 @@ describe('App', () => {
   });
 
   test('Deve testar a visibilidade dos componentes do formulário', () => {
-    const result = render(<App />)
-
     // Step 1
     expect(result.queryByDisplayValue('administrator')).toBeInTheDocument();
     expect(result.queryByDisplayValue('editor')).toBeInTheDocument();
@@ -93,8 +104,6 @@ describe('App', () => {
   });
 
   test('Deve testar as validações dos campos e o controle do preenchimento do formulário.', async () => {
-    const result = render(<App />)
-
     // Step 1
     fireEvent.click(result.getByTestId('button-next'));
     expect(result.getByTestId('span-step').textContent).toBe('1');
@@ -136,7 +145,7 @@ describe('App', () => {
 
     // Request
     const successMessage = await result.findByTestId('span-success');
-    expect(successMessage.textContent).toBe('Conta criada com sucesso #11');
+    expect(successMessage.textContent).toBe('Conta criada com sucesso #12');
     expect(successMessage).toBeInTheDocument();
   });
 });
